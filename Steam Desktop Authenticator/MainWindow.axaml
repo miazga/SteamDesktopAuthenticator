@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Steam_Desktop_Authenticator.MainWindow"
+        Title="Steam Desktop Authenticator"
+        Width="800"
+        Height="600"
+        WindowStartupLocation="CenterScreen">
+
+
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#1e3a8a" Padding="10">
+            <TextBlock Text="Steam Desktop Authenticator" 
+                       Foreground="White" 
+                       FontSize="18" 
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="1" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Account List -->
+            <TextBlock Grid.Row="0" 
+                       Text="Your Steam Accounts" 
+                       FontSize="16" 
+                       FontWeight="Bold" 
+                       Margin="0,0,0,10"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="AccountsPanel" Spacing="10">
+                    <!-- Account items will be added here dynamically -->
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Right" 
+                        Spacing="10" 
+                        Margin="0,20,0,0">
+                <Button x:Name="AddAccountButton" 
+                        Content="Add Account" 
+                        Click="AddAccount_Click"/>
+                <Button x:Name="SettingsButton" 
+                        Content="Settings" 
+                        Click="Settings_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window> 

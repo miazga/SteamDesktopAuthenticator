@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace Steam_Desktop_Authenticator
 {
@@ -161,15 +160,14 @@ namespace Steam_Desktop_Authenticator
             string passKey = null;
             while (!passKeyValid)
             {
-                InputForm passKeyForm = new InputForm("Please enter your encryption passkey.", true);
-                passKeyForm.ShowDialog();
-                if (!passKeyForm.Canceled)
+                Console.WriteLine("Please enter your encryption passkey:");
+                passKey = Console.ReadLine();
+                if (passKey != null)
                 {
-                    passKey = passKeyForm.txtBox.Text;
                     passKeyValid = this.VerifyPasskey(passKey);
                     if (!passKeyValid)
                     {
-                        MessageBox.Show("That passkey is invalid.");
+                        Console.WriteLine("That passkey is invalid.");
                     }
                 }
                 else
@@ -182,39 +180,36 @@ namespace Steam_Desktop_Authenticator
 
         public string PromptSetupPassKey(string initialPrompt = "Enter passkey, or hit cancel to remain unencrypted.")
         {
-            InputForm newPassKeyForm = new InputForm(initialPrompt);
-            newPassKeyForm.ShowDialog();
-            if (newPassKeyForm.Canceled || newPassKeyForm.txtBox.Text.Length == 0)
+            Console.WriteLine(initialPrompt);
+            string newPassKey = Console.ReadLine();
+            if (newPassKey == null || newPassKey.Length == 0)
             {
-                MessageBox.Show("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
+                Console.WriteLine("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
                 return null;
             }
 
-            InputForm newPassKeyForm2 = new InputForm("Confirm new passkey.");
-            newPassKeyForm2.ShowDialog();
-            if (newPassKeyForm2.Canceled)
+            Console.WriteLine("Confirm new passkey:");
+            string confirmPassKey = Console.ReadLine();
+            if (confirmPassKey == null)
             {
-                MessageBox.Show("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
+                Console.WriteLine("WARNING: You chose to not encrypt your files. Doing so imposes a security risk for yourself. If an attacker were to gain access to your computer, they could completely lock you out of your account and steal all your items.");
                 return null;
             }
-
-            string newPassKey = newPassKeyForm.txtBox.Text;
-            string confirmPassKey = newPassKeyForm2.txtBox.Text;
 
             if (newPassKey != confirmPassKey)
             {
-                MessageBox.Show("Passkeys do not match.");
+                Console.WriteLine("Passkeys do not match.");
                 return null;
             }
 
             if (!this.ChangeEncryptionKey(null, newPassKey))
             {
-                MessageBox.Show("Unable to set passkey.");
+                Console.WriteLine("Unable to set passkey.");
                 return null;
             }
             else
             {
-                MessageBox.Show("Passkey successfully set.");
+                Console.WriteLine("Passkey successfully set.");
             }
 
             return newPassKey;

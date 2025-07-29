@@ -1,39 +1,48 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <RootNamespace>Steam_Desktop_Authenticator</RootNamespace>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>0.2.2.%2a</ApplicationVersion>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <PropertyGroup>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
-    <StartupObject>Steam_Desktop_Authenticator.Program</StartupObject>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DebugType>portable</DebugType>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>none</DebugType>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Update="ConfirmationButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
-  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\lib\SteamAuth\SteamAuth\SteamAuth.csproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <Content Include="icon.ico" />
-  </ItemGroup>
-  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.0.10" Condition="'$(Configuration)' == 'Debug'" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="SteamKit2" Version="3.0.0-Beta.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Manifest.cs" />
+    <Compile Include="CommandLineOptions.cs" />
+    <Compile Include="FileEncryptor.cs" />
+    <Compile Include="MaFileEncryptedException.cs" />
+    <Compile Include="ManifestParseException.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="**\*.axaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+
+    <!--        This line important \/-->
+    <AvaloniaXaml Remove="**\*.axaml" />
+    <!--        This line important /\-->
+
+    <AvaloniaResource Include="**\*.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="**\*.xaml" />
+    <AdditionalFiles Include="**\*.axaml" />
   </ItemGroup>
 </Project>

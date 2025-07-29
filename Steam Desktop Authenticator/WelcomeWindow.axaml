@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Steam_Desktop_Authenticator.WelcomeWindow"
+        Title="Welcome to Steam Desktop Authenticator"
+        Width="500"
+        Height="300"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" 
+                   Text="Welcome to Steam Desktop Authenticator" 
+                   FontSize="20" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center" 
+                   Margin="0,0,0,20"/>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" Spacing="15">
+            <TextBlock Text="This application helps you manage Steam Guard authentication codes for your Steam accounts." 
+                       TextWrapping="Wrap" 
+                       Margin="0,0,0,10"/>
+            
+            <TextBlock Text="You can either:" 
+                       FontWeight="Bold" 
+                       Margin="0,10,0,5"/>
+            
+            <TextBlock Text="• Import existing accounts from a previous installation" 
+                       Margin="20,0,0,5"/>
+            <TextBlock Text="• Start fresh and add accounts manually" 
+                       Margin="20,0,0,5"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Center" 
+                    Spacing="15" 
+                    Margin="0,20,0,0">
+            <Button x:Name="ImportConfigButton" 
+                    Content="Import Existing Config" 
+                    Width="150" 
+                    Height="35"
+                    Click="ImportConfig_Click"/>
+            <Button x:Name="JustStartButton" 
+                    Content="Start Fresh" 
+                    Width="100" 
+                    Height="35"
+                    Click="JustStart_Click"/>
+        </StackPanel>
+    </Grid>
+</Window> 
