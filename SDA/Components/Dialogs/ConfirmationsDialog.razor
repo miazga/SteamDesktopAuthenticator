@@ -1,0 +1,228 @@
+@using SDA.Services
+@using SteamAuth
+@inject SteamAuthService SteamAuthService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                Trade Confirmations - @Account?.AccountName
+            </MudText>
+
+            @if (isLoading)
+            {
+                <MudProgressCircular Indeterminate="true" Class="d-block mx-auto" />
+            }
+            else if (confirmations.Length == 0)
+            {
+                <MudText Typo="Typo.body1" Color="Color.Secondary" Class="text-center pa-4">
+                    No pending confirmations found.
+                </MudText>
+            }
+            else
+            {
+                <MudStack>
+                    @foreach (var confirmation in confirmations)
+                    {
+                        <MudCard>
+                            <MudCardContent>
+                                <MudGrid>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.body1" Class="font-weight-medium">
+                                            @GetConfirmationType(confirmation.ConfType)
+                                        </MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            ID: @confirmation.ID
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" Class="mt-2">
+                                        <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+                                            <MudButton OnClick="() => AcceptConfirmation(confirmation)" 
+                                                      Color="Color.Success"
+                                                      StartIcon="@Icons.Material.Filled.Check">
+                                                Accept
+                                            </MudButton>
+                                            <MudButton OnClick="() => DenyConfirmation(confirmation)" 
+                                                      Color="Color.Error"
+                                                      StartIcon="@Icons.Material.Filled.Close">
+                                                Deny
+                                            </MudButton>
+                                        </MudButtonGroup>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudStack>
+
+                <MudDivider Class="my-4" />
+                
+                <MudButtonGroup Variant="Variant.Filled" FullWidth="true">
+                    <MudButton OnClick="AcceptAll" 
+                              Color="Color.Success"
+                              StartIcon="@Icons.Material.Filled.CheckCircle">
+                        Accept All
+                    </MudButton>
+                    <MudButton OnClick="DenyAll" 
+                              Color="Color.Error"
+                              StartIcon="@Icons.Material.Filled.Cancel">
+                        Deny All
+                    </MudButton>
+                </MudButtonGroup>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Refresh">Refresh</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Cancel" Variant="Variant.Filled">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public SteamGuardAccount? Account { get; set; }
+
+    private Confirmation[] confirmations = new Confirmation[0];
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConfirmations();
+    }
+
+    private async Task LoadConfirmations()
+    {
+        if (Account == null) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            confirmations = await SteamAuthService.GetConfirmationsAsync(Account);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading confirmations: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetConfirmationType(Confirmation.EMobileConfirmationType type)
+    {
+        return type switch
+        {
+            Confirmation.EMobileConfirmationType.Trade => "Trade",
+            Confirmation.EMobileConfirmationType.MarketListing => "Market Listing",
+            Confirmation.EMobileConfirmationType.FeatureOptOut => "Feature Opt-Out",
+            Confirmation.EMobileConfirmationType.PhoneNumberChange => "Phone Number Change",
+            Confirmation.EMobileConfirmationType.AccountRecovery => "Account Recovery",
+            Confirmation.EMobileConfirmationType.Test => "Test",
+            _ => "Unknown"
+        };
+    }
+
+    private async Task AcceptConfirmation(Confirmation confirmation)
+    {
+        if (Account == null) return;
+
+        try
+        {
+            bool success = await SteamAuthService.AcceptConfirmationAsync(Account, confirmation);
+            if (success)
+            {
+                Snackbar.Add("Confirmation accepted successfully!", Severity.Success);
+                await LoadConfirmations();
+            }
+            else
+            {
+                Snackbar.Add("Failed to accept confirmation.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error accepting confirmation: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DenyConfirmation(Confirmation confirmation)
+    {
+        if (Account == null) return;
+
+        try
+        {
+            bool success = await SteamAuthService.DenyConfirmationAsync(Account, confirmation);
+            if (success)
+            {
+                Snackbar.Add("Confirmation denied successfully!", Severity.Success);
+                await LoadConfirmations();
+            }
+            else
+            {
+                Snackbar.Add("Failed to deny confirmation.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error denying confirmation: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AcceptAll()
+    {
+        if (Account == null || confirmations.Length == 0) return;
+
+        try
+        {
+            bool success = await SteamAuthService.AcceptMultipleConfirmationsAsync(confirmations);
+            if (success)
+            {
+                Snackbar.Add("All confirmations accepted successfully!", Severity.Success);
+                await LoadConfirmations();
+            }
+            else
+            {
+                Snackbar.Add("Failed to accept all confirmations.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error accepting all confirmations: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DenyAll()
+    {
+        if (Account == null || confirmations.Length == 0) return;
+
+        try
+        {
+            bool success = await SteamAuthService.DenyMultipleConfirmationsAsync(confirmations);
+            if (success)
+            {
+                Snackbar.Add("All confirmations denied successfully!", Severity.Success);
+                await LoadConfirmations();
+            }
+            else
+            {
+                Snackbar.Add("Failed to deny all confirmations.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error denying all confirmations: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Refresh()
+    {
+        await LoadConfirmations();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 

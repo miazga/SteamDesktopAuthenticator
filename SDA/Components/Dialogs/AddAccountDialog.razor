@@ -1,0 +1,240 @@
+@using SDA.Services
+@using SteamAuth
+@inject SteamAuthService SteamAuthService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            @if (currentStep == 0)
+            {
+                <MudText Typo="Typo.h6" Class="mb-4">Login to Steam</MudText>
+                <MudForm @ref="form" @bind-IsValid="@isValid">
+                    <MudTextField @bind-Value="username" 
+                                 Label="Username" 
+                                 Required="true"
+                                 RequiredError="Username is required!"
+                                 Class="mb-3" />
+                    <MudTextField @bind-Value="password" 
+                                 Label="Password" 
+                                 Required="true"
+                                 RequiredError="Password is required!"
+                                 Variant="Variant.Outlined"
+                                 InputType="InputType.Password"
+                                 Class="mb-3" />
+                    @if (requiresTwoFactor)
+                    {
+                        <MudTextField @bind-Value="twoFactorCode" 
+                                     Label="Steam Guard Code" 
+                                     Required="true"
+                                     RequiredError="Steam Guard code is required!"
+                                     Class="mb-3" />
+                    }
+                </MudForm>
+            }
+            else if (currentStep == 1)
+            {
+                <MudText Typo="Typo.h6" Class="mb-4">Link Authenticator</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">
+                    Enter your phone number to receive an SMS code for linking the authenticator.
+                </MudText>
+                <MudTextField @bind-Value="phoneNumber" 
+                             Label="Phone Number" 
+                             Required="true"
+                             RequiredError="Phone number is required!"
+                             Class="mb-3" />
+            }
+            else if (currentStep == 2)
+            {
+                <MudText Typo="Typo.h6" Class="mb-4">Verify SMS Code</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">
+                    Enter the SMS code sent to your phone to complete the authenticator setup.
+                </MudText>
+                <MudTextField @bind-Value="smsCode" 
+                             Label="SMS Code" 
+                             Required="true"
+                             RequiredError="SMS code is required!"
+                             Class="mb-3" />
+            }
+            else if (currentStep == 3)
+            {
+                <MudText Typo="Typo.h6" Class="mb-4">Setup Complete</MudText>
+                <MudText Typo="Typo.body2" Class="mb-4">
+                    Your Steam account has been successfully linked with the authenticator.
+                </MudText>
+                <MudAlert Severity="Severity.Success" Class="mb-3">
+                    Account: @account?.AccountName
+                </MudAlert>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        @if (currentStep > 0 && currentStep < 3)
+        {
+            <MudButton OnClick="PreviousStep">Back</MudButton>
+        }
+        @if (currentStep < 3)
+        {
+            <MudButton Color="Color.Primary" 
+                      OnClick="NextStep" 
+                      Disabled="@(!isValid || isLoading)"
+                      Variant="Variant.Filled">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @(currentStep == 2 ? "Complete" : "Next")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary" 
+                      OnClick="Cancel" 
+                      Variant="Variant.Filled">
+                Close
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm form = default!;
+    private bool isValid = false;
+    private bool isLoading = false;
+    private int currentStep = 0;
+    private bool requiresTwoFactor = false;
+
+    private string username = "";
+    private string password = "";
+    private string twoFactorCode = "";
+    private string phoneNumber = "";
+    private string smsCode = "";
+    private SteamGuardAccount? account;
+
+    private async Task NextStep()
+    {
+        if (currentStep == 0)
+        {
+            await LoginStep();
+        }
+        else if (currentStep == 1)
+        {
+            await LinkStep();
+        }
+        else if (currentStep == 2)
+        {
+            await FinalizeStep();
+        }
+    }
+
+    private async Task LoginStep()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            account = await SteamAuthService.LoginAsync(username, password, 
+                requiresTwoFactor ? twoFactorCode : null);
+
+            if (account == null)
+            {
+                Snackbar.Add("Login failed. Please check your credentials.", Severity.Error);
+                return;
+            }
+
+            currentStep = 1;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Login error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LinkStep()
+    {
+        if (account == null) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            account = await SteamAuthService.LinkAuthenticatorAsync(account, phoneNumber);
+
+            if (account == null)
+            {
+                Snackbar.Add("Failed to link authenticator.", Severity.Error);
+                return;
+            }
+
+            currentStep = 2;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Link error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task FinalizeStep()
+    {
+        if (account == null) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            bool success = await SteamAuthService.FinalizeAuthenticatorAsync(account, smsCode);
+
+            if (!success)
+            {
+                Snackbar.Add("Failed to finalize authenticator setup.", Severity.Error);
+                return;
+            }
+
+            // Save the account
+            bool saved = SteamAuthService.SaveAccount(account);
+            if (!saved)
+            {
+                Snackbar.Add("Failed to save account.", Severity.Error);
+                return;
+            }
+
+            currentStep = 3;
+            Snackbar.Add("Account added successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Finalization error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (currentStep > 0)
+        {
+            currentStep--;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 

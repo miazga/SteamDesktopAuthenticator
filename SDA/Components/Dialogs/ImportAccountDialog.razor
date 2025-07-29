@@ -1,0 +1,159 @@
+@using SDA.Services
+@using SteamAuth
+@inject SteamAuthService SteamAuthService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            <MudText Typo="Typo.h6" Class="mb-4">Import Steam Account</MudText>
+            
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Import an existing Steam account from a .maFile or enter account details manually.
+            </MudText>
+
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+                <MudTabPanel Text="Upload .maFile">
+                    <MudPaper Class="pa-4">
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Select a .maFile to import:
+                        </MudText>
+                        <InputFile OnChange="OnFilesChanged" class="d-none" id="fileInput" accept=".maFile" />
+                        <MudButton HtmlTag="label"
+                                  Variant="Variant.Filled"
+                                  Color="Color.Primary"
+                                  StartIcon="@Icons.Material.Filled.Upload"
+                                  for="fileInput">
+                            Choose .maFile
+                        </MudButton>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Manual Entry">
+                    <MudPaper Class="pa-4">
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Enter account details manually:
+                        </MudText>
+                        <MudForm @ref="form" @bind-IsValid="@isValid">
+                            <MudTextField @bind-Value="accountName" 
+                                         Label="Account Name" 
+                                         Required="true"
+                                         RequiredError="Account name is required!"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="steamId" 
+                                         Label="Steam ID" 
+                                         Required="true"
+                                         RequiredError="Steam ID is required!"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="sharedSecret" 
+                                         Label="Shared Secret" 
+                                         Required="true"
+                                         RequiredError="Shared secret is required!"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="identitySecret" 
+                                         Label="Identity Secret" 
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="deviceId" 
+                                         Label="Device ID" 
+                                         Class="mb-3" />
+                        </MudForm>
+                    </MudPaper>
+                </MudTabPanel>
+            </MudTabs>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                  OnClick="ImportAccount" 
+                  Disabled="@(!isValid && !hasFile)"
+                  Variant="Variant.Filled">
+            Import
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm form = default!;
+    private bool isValid = false;
+    private bool hasFile = false;
+    private IBrowserFile? selectedFile;
+
+    private string accountName = "";
+    private string steamId = "";
+    private string sharedSecret = "";
+    private string identitySecret = "";
+    private string deviceId = "";
+
+    private void OnFilesChanged(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        hasFile = true;
+        StateHasChanged();
+    }
+
+    private async Task ImportAccount()
+    {
+        try
+        {
+            if (hasFile && selectedFile != null)
+            {
+                // Handle file import
+                using var stream = selectedFile.OpenReadStream();
+                using var reader = new StreamReader(stream);
+                var content = await reader.ReadToEndAsync();
+                
+                // Parse the .maFile content
+                var account = Newtonsoft.Json.JsonConvert.DeserializeObject<SteamGuardAccount>(content);
+                if (account != null)
+                {
+                    bool success = SteamAuthService.SaveAccount(account);
+                    if (success)
+                    {
+                        Snackbar.Add("Account imported successfully!", Severity.Success);
+                        MudDialog.Close(DialogResult.Ok(true));
+                    }
+                    else
+                    {
+                        Snackbar.Add("Failed to save imported account.", Severity.Error);
+                    }
+                }
+                else
+                {
+                    Snackbar.Add("Invalid .maFile format.", Severity.Error);
+                }
+            }
+            else if (isValid)
+            {
+                // Handle manual entry
+                var account = new SteamGuardAccount
+                {
+                    AccountName = accountName,
+                    Session = new SessionData { SteamID = ulong.Parse(steamId) },
+                    SharedSecret = sharedSecret,
+                    IdentitySecret = identitySecret,
+                    DeviceID = deviceId
+                };
+
+                bool success = SteamAuthService.SaveAccount(account);
+                if (success)
+                {
+                    Snackbar.Add("Account imported successfully!", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add("Failed to save imported account.", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error importing account: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 

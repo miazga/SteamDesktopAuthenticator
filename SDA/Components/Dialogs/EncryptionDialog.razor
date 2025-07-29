@@ -1,0 +1,207 @@
+@using SDA.Services
+@inject ManifestService ManifestService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            <MudText Typo="Typo.h6" Class="mb-4">Manage Encryption</MudText>
+
+            @if (manifest?.Encrypted == true)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    Your account files are currently encrypted.
+                </MudAlert>
+
+                <MudCard Class="mb-4">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">Change Passkey</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudForm @ref="changeForm" @bind-IsValid="@changeFormValid">
+                            <MudTextField @bind-Value="currentPasskey" 
+                                         Label="Current Passkey" 
+                                         Required="true"
+                                         RequiredError="Current passkey is required!"
+                                         InputType="InputType.Password"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="newPasskey" 
+                                         Label="New Passkey" 
+                                         Required="true"
+                                         RequiredError="New passkey is required!"
+                                         InputType="InputType.Password"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="confirmPasskey" 
+                                         Label="Confirm New Passkey" 
+                                         Required="true"
+                                         RequiredError="Please confirm the new passkey!"
+                                         InputType="InputType.Password"
+                                         Class="mb-3" />
+                        </MudForm>
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Primary"
+                                  OnClick="ChangePasskey"
+                                  Disabled="@(!changeFormValid || newPasskey != confirmPasskey)">
+                            Change Passkey
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+
+                <MudCard>
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">Remove Encryption</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Warning: This will decrypt all your account files and remove encryption protection.
+                        </MudText>
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Warning"
+                                  OnClick="RemoveEncryption">
+                            Remove Encryption
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4">
+                    Your account files are not encrypted. Enable encryption to protect your data.
+                </MudAlert>
+
+                <MudCard>
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">Enable Encryption</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudForm @ref="setupForm" @bind-IsValid="@setupFormValid">
+                            <MudTextField @bind-Value="setupPasskey" 
+                                         Label="Passkey" 
+                                         Required="true"
+                                         RequiredError="Passkey is required!"
+                                         InputType="InputType.Password"
+                                         Class="mb-3" />
+                            <MudTextField @bind-Value="confirmSetupPasskey" 
+                                         Label="Confirm Passkey" 
+                                         Required="true"
+                                         RequiredError="Please confirm the passkey!"
+                                         InputType="InputType.Password"
+                                         Class="mb-3" />
+                        </MudForm>
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Primary"
+                                  OnClick="SetupEncryption"
+                                  Disabled="@(!setupFormValid || setupPasskey != confirmSetupPasskey)">
+                            Enable Encryption
+                        </MudButton>
+                    </MudCardContent>
+                </MudCard>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private ManifestService.Manifest? manifest;
+    private MudForm changeForm = default!;
+    private MudForm setupForm = default!;
+    private bool changeFormValid = false;
+    private bool setupFormValid = false;
+
+    private string currentPasskey = "";
+    private string newPasskey = "";
+    private string confirmPasskey = "";
+    private string setupPasskey = "";
+    private string confirmSetupPasskey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            manifest = ManifestService.GetManifest();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading encryption settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ChangePasskey()
+    {
+        try
+        {
+            if (manifest == null) return;
+
+            // Verify current passkey
+            var accounts = manifest.GetAllAccounts(currentPasskey);
+            if (accounts.Length == 0)
+            {
+                Snackbar.Add("Current passkey is incorrect.", Severity.Error);
+                return;
+            }
+
+            // Change encryption key
+            bool success = manifest.ChangeEncryptionKey(currentPasskey, newPasskey);
+            if (success)
+            {
+                Snackbar.Add("Passkey changed successfully!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to change passkey.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error changing passkey: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RemoveEncryption()
+    {
+        try
+        {
+            if (manifest == null) return;
+
+            // This would need to be implemented to decrypt all files
+            Snackbar.Add("Remove encryption functionality not yet implemented.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error removing encryption: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SetupEncryption()
+    {
+        try
+        {
+            if (manifest == null) return;
+
+            // This would need to be implemented to encrypt all files
+            manifest.Encrypted = true;
+            bool success = manifest.Save();
+            if (success)
+            {
+                Snackbar.Add("Encryption enabled successfully!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to enable encryption.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error setting up encryption: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 

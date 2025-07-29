@@ -1,0 +1,116 @@
+@using SDA.Services
+@inject ManifestService ManifestService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            <MudText Typo="Typo.h6" Class="mb-4">Application Settings</MudText>
+
+            <MudForm @ref="form">
+                <MudCard Class="mb-4">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">Trade Confirmations</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack>
+                            <MudCheckBox T="bool" @bind-Checked="autoConfirmTrades" 
+                                        Label="Auto-confirm trades"
+                                        Color="Color.Primary" />
+                            <MudCheckBox T="bool" @bind-Checked="autoConfirmMarketTransactions" 
+                                        Label="Auto-confirm market transactions"
+                                        Color="Color.Primary" />
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+
+                <MudCard Class="mb-4">
+                    <MudCardHeader>
+                        <MudText Typo="Typo.h6">Periodic Checking</MudText>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack>
+                            <MudCheckBox T="bool" @bind-Checked="periodicChecking" 
+                                        Label="Enable periodic checking"
+                                        Color="Color.Primary" />
+                            
+                            @if (periodicChecking)
+                            {
+                                <MudNumericField @bind-Value="periodicCheckingInterval" 
+                                                Label="Check interval (minutes)"
+                                                Min="1"
+                                                Max="60" />
+                                
+                                <MudCheckBox T="bool" @bind-Checked="checkAllAccounts" 
+                                            Label="Check all accounts"
+                                            Color="Color.Primary" />
+                            }
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudForm>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveSettings" Variant="Variant.Filled">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm form = default!;
+    private bool autoConfirmTrades = false;
+    private bool autoConfirmMarketTransactions = false;
+    private bool periodicChecking = false;
+    private int periodicCheckingInterval = 5;
+    private bool checkAllAccounts = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var manifest = ManifestService.GetManifest();
+            autoConfirmTrades = manifest.AutoConfirmTrades;
+            autoConfirmMarketTransactions = manifest.AutoConfirmMarketTransactions;
+            periodicChecking = manifest.PeriodicChecking;
+            periodicCheckingInterval = manifest.PeriodicCheckingInterval;
+            checkAllAccounts = manifest.CheckAllAccounts;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            var manifest = ManifestService.GetManifest();
+            manifest.AutoConfirmTrades = autoConfirmTrades;
+            manifest.AutoConfirmMarketTransactions = autoConfirmMarketTransactions;
+            manifest.PeriodicChecking = periodicChecking;
+            manifest.PeriodicCheckingInterval = periodicCheckingInterval;
+            manifest.CheckAllAccounts = checkAllAccounts;
+
+            bool success = manifest.Save();
+            if (success)
+            {
+                Snackbar.Add("Settings saved successfully!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to save settings.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 

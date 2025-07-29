@@ -1,0 +1,260 @@
+@page "/"
+@using SDA.Services
+@using SteamAuth
+@using SDA.Components.Dialogs
+@inject SteamAuthService SteamAuthService
+@inject ManifestService ManifestService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+
+<PageTitle>Steam Desktop Authenticator</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Steam Desktop Authenticator</MudText>
+    
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudCard>
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6">Steam Accounts</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (accounts.Length == 0)
+                    {
+                        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="text-center pa-4">
+                            No Steam accounts found. Add an account to get started.
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudStack>
+                            @foreach (var account in accounts)
+                            {
+                                <MudCard>
+                                    <MudCardContent>
+                                        <MudGrid>
+                                            <MudItem xs="12" md="6">
+                                                <MudText Typo="Typo.body1" Class="font-weight-medium">
+                                                    @account.AccountName
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    Steam ID: @account.Session?.SteamID
+                                                </MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" md="3">
+                                                <MudText Typo="Typo.h6" Color="Color.Primary">
+                                                    @GetSteamGuardCode(account)
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    Steam Guard Code
+                                                </MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" md="3">
+                                                <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+                                                    <MudButton OnClick="() => CopyCode(account)" 
+                                                              Color="Color.Primary"
+                                                              StartIcon="@Icons.Material.Filled.ContentCopy">
+                                                        Copy
+                                                    </MudButton>
+                                                    <MudButton OnClick="() => ShowAccountMenu(account)" 
+                                                              Color="Color.Secondary"
+                                                              StartIcon="@Icons.Material.Filled.MoreVert">
+                                                        Menu
+                                                    </MudButton>
+                                                </MudButtonGroup>
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudCardContent>
+                                </MudCard>
+                            }
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6">Actions</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack>
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Primary" 
+                                  FullWidth="true"
+                                  StartIcon="@Icons.Material.Filled.Add"
+                                  OnClick="ShowAddAccountDialog">
+                            Add Account
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Outlined" 
+                                  Color="Color.Info" 
+                                  FullWidth="true"
+                                  StartIcon="@Icons.Material.Filled.Upload"
+                                  OnClick="ShowImportAccountDialog">
+                            Import Account
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Outlined" 
+                                  Color="Color.Warning" 
+                                  FullWidth="true"
+                                  StartIcon="@Icons.Material.Filled.List"
+                                  OnClick="ShowConfirmationsDialog">
+                            Confirmations
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Outlined" 
+                                  Color="Color.Secondary" 
+                                  FullWidth="true"
+                                  StartIcon="@Icons.Material.Filled.Settings"
+                                  OnClick="ShowSettingsDialog">
+                            Settings
+                        </MudButton>
+                        
+                        <MudButton Variant="Variant.Outlined" 
+                                  Color="Color.Error" 
+                                  FullWidth="true"
+                                  StartIcon="@Icons.Material.Filled.Security"
+                                  OnClick="ShowEncryptionDialog">
+                            Manage Encryption
+                        </MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+            
+            <MudCard Class="mt-4">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6">Statistics</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudStack>
+                        <MudText Typo="Typo.body1">
+                            Total Accounts: @accounts.Length
+                        </MudText>
+                        <MudText Typo="Typo.body1">
+                            Encrypted: @(manifest?.Encrypted == true ? "Yes" : "No")
+                        </MudText>
+                        <MudText Typo="Typo.body1">
+                            Auto-confirm Trades: @(manifest?.AutoConfirmTrades == true ? "Yes" : "No")
+                        </MudText>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private SteamGuardAccount[] accounts = new SteamGuardAccount[0];
+    private ManifestService.Manifest? manifest;
+    private Timer? updateTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        // Set up timer to update Steam Guard codes every 30 seconds
+        updateTimer = new Timer(async _ => await InvokeAsync(StateHasChanged), null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            manifest = ManifestService.GetManifest();
+            accounts = manifest.GetAllAccounts();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetSteamGuardCode(SteamGuardAccount account)
+    {
+        return SteamAuthService.GenerateSteamGuardCode(account);
+    }
+
+    private async Task CopyCode(SteamGuardAccount account)
+    {
+        var code = GetSteamGuardCode(account);
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+        Snackbar.Add($"Steam Guard code copied: {code}", Severity.Success);
+    }
+
+    private async Task ShowAddAccountDialog()
+    {
+        var dialog = await DialogService.ShowAsync<AddAccountDialog>("Add Steam Account");
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ShowImportAccountDialog()
+    {
+        var dialog = await DialogService.ShowAsync<ImportAccountDialog>("Import Steam Account");
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ShowConfirmationsDialog()
+    {
+        if (accounts.Length == 0)
+        {
+            Snackbar.Add("No accounts available for confirmations.", Severity.Warning);
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<ConfirmationsDialog>("Trade Confirmations", 
+            new DialogParameters { ["Account"] = accounts.FirstOrDefault() });
+        await dialog.Result;
+    }
+
+    private async Task ShowSettingsDialog()
+    {
+        var dialog = await DialogService.ShowAsync<SettingsDialog>("Application Settings");
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ShowEncryptionDialog()
+    {
+        var dialog = await DialogService.ShowAsync<EncryptionDialog>("Manage Encryption");
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task ShowAccountMenu(SteamGuardAccount account)
+    {
+        var dialog = await DialogService.ShowAsync<AccountMenuDialog>("Account Options", 
+            new DialogParameters { ["Account"] = account });
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    public void Dispose()
+    {
+        updateTimer?.Dispose();
+    }
+} 

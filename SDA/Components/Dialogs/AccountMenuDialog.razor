@@ -1,0 +1,147 @@
+@using SDA.Services
+@using SteamAuth
+@inject SteamAuthService SteamAuthService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="max-height: 80vh; overflow-y: auto">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                Account Options - @Account?.AccountName
+            </MudText>
+
+            <MudStack>
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Primary" 
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.ContentCopy"
+                          OnClick="CopySteamGuardCode">
+                    Copy Steam Guard Code
+                </MudButton>
+
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Info" 
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.List"
+                          OnClick="ShowConfirmations">
+                    View Trade Confirmations
+                </MudButton>
+
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Warning" 
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.Refresh"
+                          OnClick="RefreshLogin">
+                    Refresh Login
+                </MudButton>
+
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Error" 
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.Delete"
+                          OnClick="RemoveAccount">
+                    Remove Account
+                </MudButton>
+
+                <MudButton Variant="Variant.Text" 
+                          Color="Color.Error" 
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.Security"
+                          OnClick="DeactivateAuthenticator">
+                    Deactivate Authenticator
+                </MudButton>
+            </MudStack>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public SteamGuardAccount? Account { get; set; }
+
+    private async Task CopySteamGuardCode()
+    {
+        if (Account == null) return;
+
+        var code = SteamAuthService.GenerateSteamGuardCode(Account);
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+        Snackbar.Add($"Steam Guard code copied: {code}", Severity.Success);
+        MudDialog.Close();
+    }
+
+    private async Task ShowConfirmations()
+    {
+        if (Account == null) return;
+
+        // This would open the confirmations dialog
+        // For now, we'll just close this dialog
+        MudDialog.Close();
+    }
+
+    private async Task RefreshLogin()
+    {
+        if (Account == null) return;
+
+        try
+        {
+            // This would need to be implemented to refresh the login session
+            Snackbar.Add("Login refresh functionality not yet implemented.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error refreshing login: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RemoveAccount()
+    {
+        if (Account == null) return;
+
+        try
+        {
+            bool success = SteamAuthService.RemoveAccount(Account);
+            if (success)
+            {
+                Snackbar.Add("Account removed successfully!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to remove account.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error removing account: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeactivateAuthenticator()
+    {
+        if (Account == null) return;
+
+        try
+        {
+            bool success = await SteamAuthService.DeactivateAuthenticatorAsync(Account);
+            if (success)
+            {
+                Snackbar.Add("Authenticator deactivated successfully!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to deactivate authenticator.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deactivating authenticator: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+} 
